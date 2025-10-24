@@ -21,7 +21,7 @@ class InferenceService:
             "video/webm",
             "video/quicktime"
         ]
-        self.model = YOLO("app/models/best.pt")
+        self.model = YOLO("/home/softsuave/Pictures/PPE_model/pure-model with 150 Epochs/best.pt")
         self.output_dir = "output"
         os.makedirs(self.output_dir, exist_ok=True)
         self.tracking_service = TrackingService()
@@ -30,12 +30,12 @@ class InferenceService:
     def detect_frame(self, frame):
         """Extract raw detections from a single frame"""
         self.frame_counter += 1
-        results = self.model(frame, conf=0.25, imgsz=1280)
+        results = self.model(frame, conf=0.25, iou=0.25, imgsz=1280)
         print(f"Processing frame: {self.frame_counter}")
         frame_detections = []
 
         # Define allowed classes
-        allowed_classes = ["Helmet", "Vest"]
+        allowed_classes = ['Gloves', 'Helmet', 'Human', 'Shoe', 'Vest', 'gloves']
 
         for result in results:
             boxes = result.boxes

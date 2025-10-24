@@ -1,4 +1,3 @@
-import numpy as np
 import cv2
 from collections import defaultdict
 from app.services.simple_tracker import SimpleTracker
@@ -7,9 +6,8 @@ from app.services.simple_tracker import SimpleTracker
 class TrackingService:
     def __init__(self):
         # Use SimpleTracker instead of ByteTracker
-        self.tracker = SimpleTracker(max_lost=50, iou_threshold=0.3)
+        self.tracker = SimpleTracker(max_lost=50, iou_threshold=0.25)
         self.track_history = defaultdict(list)
-        self.colors = {}
         self.track_stats = defaultdict(lambda: {
             'first_seen': None,
             'last_seen': None,
@@ -19,6 +17,16 @@ class TrackingService:
             'confidence_sum': 0
         })
         self.frame_id = 0
+
+        # Define class-specific colors (BGR format)
+        self.class_colors = {
+            'Helmet': (255, 0, 0),      # Blue
+            'Vest': (0, 255, 0),        # Green
+            'Shoe': (0, 0, 255),        # Red
+            'Gloves': (0, 255, 255),    # Yellow
+            'gloves': (0, 255, 255),    # Yellow
+            'Human': (255, 0, 255)      # Magenta
+        }
 
     def update_tracks(self, frame, raw_detections):
         """Update tracks with new detections"""
@@ -59,15 +67,6 @@ class TrackingService:
             stats['confidence_sum'] += track['score']
             stats['avg_confidence'] = stats['confidence_sum'] / stats['total_frames']
 
-            # Assign consistent color to each track
-            if track_id not in self.colors:
-                np.random.seed(track_id)  # Ensure consistent colors
-                self.colors[track_id] = (
-                    np.random.randint(50, 255),
-                    np.random.randint(50, 255),
-                    np.random.randint(50, 255)
-                )
-
         return tracked_objects
 
     def draw_tracks(self, frame, tracked_objects):
@@ -80,7 +79,8 @@ class TrackingService:
 
             # Convert to integers for drawing
             x1, y1, x2, y2 = map(int, bbox)
-            color = self.colors.get(track_id, (0, 255, 0))
+            # Use class-based color, fallback to white if class not in mapping
+            color = self.class_colors.get(class_name, (255, 255, 255))
 
             # Draw bounding box
             cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
@@ -168,6 +168,5 @@ class TrackingService:
         """Reset tracker for new video"""
         self.tracker.reset()
         self.track_history.clear()
-        self.colors.clear()
         self.track_stats.clear()
         self.frame_id = 0
