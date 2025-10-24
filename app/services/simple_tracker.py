@@ -6,7 +6,7 @@ from collections import defaultdict
 class SimpleTracker:
     """Simple IoU-based tracker without Kalman filter or appearance features"""
 
-    def __init__(self, max_lost=50, iou_threshold=0.3):
+    def __init__(self, max_lost=50, iou_threshold=0.25):
         self.max_lost = max_lost
         self.iou_threshold = iou_threshold
         self.tracks = {}
