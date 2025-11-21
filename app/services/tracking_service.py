@@ -20,7 +20,17 @@ class TrackingService:
         })
         self.frame_id = 0
 
-    def update_tracks(self, frame, raw_detections):
+        # Define class-specific colors (BGR format)
+        self.class_colors = {
+            'Helmet': (255, 0, 0),      # Blue
+            'Vest': (0, 255, 0),        # Green
+            'Shoe': (0, 0, 255),        # Red
+            'Gloves': (0, 255, 255),    # Yellow
+            'gloves': (0, 255, 255),    # Yellow
+            'Human': (255, 0, 255)      # Magenta
+        }
+
+    def update_tracks(self, raw_detections):
         """Update tracks with new detections"""
         if not raw_detections:
             # Still update tracker with empty detections to handle lost tracks
@@ -37,11 +47,13 @@ class TrackingService:
         for track in tracked_objects:
             track_id = track['track_id']
 
-            # Store track history for visualization
+            # Store track history for visualization including PPE status
             self.track_history[track_id].append({
                 'frame': self.frame_id,
                 'bbox': track['bbox'],
-                'confidence': track['score']
+                'confidence': track['score'],
+                'ppe_status': track.get('ppe_status', {}),
+                'all_ppe_present': track.get('all_ppe_present', False)
             })
 
             # Keep only last 30 frames of history for trail visualization
@@ -77,16 +89,40 @@ class TrackingService:
             bbox = track['bbox']
             confidence = track['score']
             class_name = track['class']
+            all_ppe_present = track.get('all_ppe_present', False)
+            ppe_status = track.get('ppe_status', {})
 
             # Convert to integers for drawing
             x1, y1, x2, y2 = map(int, bbox)
-            color = self.colors.get(track_id, (0, 255, 0))
+
+            # Determine color based on PPE compliance
+            if class_name == 'Human':
+                # Green if all PPE present, Red if any missing
+                color = (0, 255, 0) if all_ppe_present else (0, 0, 255)
+            else:
+                # Use class-based color for other objects (if any)
+                color = self.class_colors.get(class_name, (255, 255, 255))
 
             # Draw bounding box
             cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
 
-            # Draw label with ID, class, and confidence
-            label = f"ID:{track_id} {class_name} {confidence:.2f}"
+            # Create label with PPE status
+            if class_name == 'Human':
+                status_text = "SAFE" if all_ppe_present else "UNSAFE"
+                # Show missing items if not all PPE is present
+                if not all_ppe_present and ppe_status:
+                    missing_items = [item.upper() for item, present in ppe_status.items() if not present]
+                    if missing_items:
+                        missing_text = ", ".join(missing_items)
+                        label = f"{status_text} - Missing: {missing_text}"
+                    else:
+                        label = f"{status_text}"
+                else:
+                    label = f"{status_text}"
+            else:
+                label = f"ID:{track_id} {class_name} {confidence:.2f}"
+
+            # Calculate label size
             label_size, _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 2)
 
             # Background for text

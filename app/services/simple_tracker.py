@@ -72,20 +72,30 @@ class SimpleTracker:
             tracked_objects = []
             for i, det in enumerate(detections):
                 track_id = self._get_next_id()
+                # Store all detection metadata in track
                 self.tracks[track_id] = {
                     'bbox': det_boxes[i],
                     'score': det_scores[i],
                     'class': det_classes[i],
                     'lost_count': 0,
-                    'age': 1
+                    'age': 1,
+                    'ppe_status': det.get('ppe_status', {}),
+                    'all_ppe_present': det.get('all_ppe_present', False)
                 }
-                tracked_objects.append({
+                # Return tracked object with all metadata
+                tracked_obj = {
                     'track_id': track_id,
                     'bbox': det_boxes[i],
                     'score': det_scores[i],
                     'class': det_classes[i],
                     'state': 'Tracked'
-                })
+                }
+                # Add PPE metadata if present
+                if 'ppe_status' in det:
+                    tracked_obj['ppe_status'] = det['ppe_status']
+                if 'all_ppe_present' in det:
+                    tracked_obj['all_ppe_present'] = det['all_ppe_present']
+                tracked_objects.append(tracked_obj)
             return tracked_objects
 
         # Calculate IoU matrix
@@ -127,10 +137,14 @@ class SimpleTracker:
         # Update matched tracks
         for t_idx, d_idx in matched_indices:
             track_id = track_ids[t_idx]
+            det = detections[d_idx]
             self.tracks[track_id]['bbox'] = det_boxes[d_idx]
             self.tracks[track_id]['score'] = det_scores[d_idx]
             self.tracks[track_id]['lost_count'] = 0
             self.tracks[track_id]['age'] += 1
+            # Update PPE metadata
+            self.tracks[track_id]['ppe_status'] = det.get('ppe_status', {})
+            self.tracks[track_id]['all_ppe_present'] = det.get('all_ppe_present', False)
 
         # Handle unmatched tracks
         tracks_to_remove = []
@@ -147,25 +161,34 @@ class SimpleTracker:
         # Create new tracks for unmatched detections
         for d_idx in unmatched_dets:
             track_id = self._get_next_id()
+            det = detections[d_idx]
             self.tracks[track_id] = {
                 'bbox': det_boxes[d_idx],
                 'score': det_scores[d_idx],
                 'class': det_classes[d_idx],
                 'lost_count': 0,
-                'age': 1
+                'age': 1,
+                'ppe_status': det.get('ppe_status', {}),
+                'all_ppe_present': det.get('all_ppe_present', False)
             }
 
         # Prepare output
         tracked_objects = []
         for track_id, track in self.tracks.items():
             if track['lost_count'] == 0:  # Only return visible tracks
-                tracked_objects.append({
+                tracked_obj = {
                     'track_id': track_id,
                     'bbox': track['bbox'],
                     'score': track['score'],
                     'class': track['class'],
                     'state': 'Tracked'
-                })
+                }
+                # Add PPE metadata if present
+                if 'ppe_status' in track:
+                    tracked_obj['ppe_status'] = track['ppe_status']
+                if 'all_ppe_present' in track:
+                    tracked_obj['all_ppe_present'] = track['all_ppe_present']
+                tracked_objects.append(tracked_obj)
 
         return tracked_objects
 
